@@ -1,6 +1,7 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
     <div
+      v-if="loading"
       class="
         fixed
         w-100
@@ -130,7 +131,9 @@
                 CHD
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div v-if="showError" class="text-sm text-red-600">
+              Такой тикер уже добавлен
+            </div>
           </div>
         </div>
         <button
@@ -291,11 +294,22 @@ export default {
       tickers: [],
       selected: false,
       graph: [],
+      loading: true,
+      showError: false,
+      allowedTickers: [],
     };
   },
   methods: {
     add() {
       const newTicker = { name: this.ticker, price: "-" };
+      const exists = this.tickers.find((t) => t.name == newTicker.name);
+      if (exists) {
+        this.showError = true;
+        setInterval(() => {
+          this.showError = false;
+        }, 10000);
+        return;
+      }
       this.tickers.push(newTicker);
       setInterval(async () => {
         const f = await fetch(
@@ -325,6 +339,52 @@ export default {
       this.selected = ticker;
       this.graph = [];
     },
+    findelems(text, length = 4) {
+      let i = 0;
+      let res = [];
+      //100 оцентное совпадение
+      const val = Object.getOwnPropertyNames(this.allowedTickers).find(
+        (key) => {
+          return this.allowedTickers[key].Symbol == text;
+        }
+      );
+      if (val){
+        i++;
+        res.push(this.allowedTickers[val]);
+      }
+      const arr = Object.getOwnPropertyNames(this.allowedTickers).filter((key) => {
+          if (this.allowedTickers[key].Symbol?.indexOf(text) != -1) {
+            i++;
+          }
+          return (
+            this.allowedTickers[key].Symbol?.indexOf(text) != -1 && i <= length && this.allowedTickers[key] != this.allowedTickers[val]
+          );
+        }
+      );
+      arr.forEach((key) => {
+        res.push(this.allowedTickers[key]);
+      });
+      return res;
+    },
   },
+  created() {
+    this.loading = true;
+    fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
+      .then((f) => {
+        return f.json();
+      })
+      .then((data) => {
+        this.allowedTickers = data.Data;
+        Object.getOwnPropertyNames(data.Data).find((key) => {
+          return data.Data[key].Symbol == "BTC";
+        });
+        //console.log(this.allowedTickers[keyy]);
+        this.loading = false;
+        console.log(this.findelems("BTC"));
+      });
+  },
+  mounted(){
+    console.log("vv" + this.findelems("BT"));
+  }
 };
 </script>
