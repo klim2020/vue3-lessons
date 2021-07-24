@@ -67,6 +67,9 @@
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
+                v-for="(val, idx) in findelems(allowedTickers, ticker)"
+                :key="idx"
+                @click="ticker = val.Symbol"
                 class="
                   inline-flex
                   items-center
@@ -80,55 +83,7 @@
                   cursor-pointer
                 "
               >
-                BTC
-              </span>
-              <span
-                class="
-                  inline-flex
-                  items-center
-                  px-2
-                  m-1
-                  rounded-md
-                  text-xs
-                  font-medium
-                  bg-gray-300
-                  text-gray-800
-                  cursor-pointer
-                "
-              >
-                DOGE
-              </span>
-              <span
-                class="
-                  inline-flex
-                  items-center
-                  px-2
-                  m-1
-                  rounded-md
-                  text-xs
-                  font-medium
-                  bg-gray-300
-                  text-gray-800
-                  cursor-pointer
-                "
-              >
-                BCH
-              </span>
-              <span
-                class="
-                  inline-flex
-                  items-center
-                  px-2
-                  m-1
-                  rounded-md
-                  text-xs
-                  font-medium
-                  bg-gray-300
-                  text-gray-800
-                  cursor-pointer
-                "
-              >
-                CHD
+                {{ val.Symbol }}
               </span>
             </div>
             <div v-if="showError" class="text-sm text-red-600">
@@ -339,30 +294,32 @@ export default {
       this.selected = ticker;
       this.graph = [];
     },
-    findelems(text, length = 4) {
+    findelems(from, text, length = 4) {
+      if (text == "") {
+        return [];
+      }
       let i = 0;
       let res = [];
       //100 оцентное совпадение
-      const val = Object.getOwnPropertyNames(this.allowedTickers).find(
-        (key) => {
-          return this.allowedTickers[key].Symbol == text;
-        }
-      );
-      if (val){
+      const val = Object.getOwnPropertyNames(from).find((key) => {
+        return from[key].Symbol == text;
+      });
+      if (val) {
         i++;
-        res.push(this.allowedTickers[val]);
+        res.push(from[val]);
       }
-      const arr = Object.getOwnPropertyNames(this.allowedTickers).filter((key) => {
-          if (this.allowedTickers[key].Symbol?.indexOf(text) != -1) {
-            i++;
-          }
-          return (
-            this.allowedTickers[key].Symbol?.indexOf(text) != -1 && i <= length && this.allowedTickers[key] != this.allowedTickers[val]
-          );
+      const arr = Object.getOwnPropertyNames(from).filter((key) => {
+        if (from[key].Symbol?.indexOf(text) != -1) {
+          i++;
         }
-      );
+        return (
+          from[key].Symbol?.indexOf(text) != -1 &&
+          i <= length &&
+          from[key] != from[val]
+        );
+      });
       arr.forEach((key) => {
-        res.push(this.allowedTickers[key]);
+        res.push(from[key]);
       });
       return res;
     },
@@ -380,11 +337,8 @@ export default {
         });
         //console.log(this.allowedTickers[keyy]);
         this.loading = false;
-        console.log(this.findelems("BTC"));
       });
   },
-  mounted(){
-    console.log("vv" + this.findelems("BT"));
-  }
+  mounted() {},
 };
 </script>
