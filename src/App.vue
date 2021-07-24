@@ -144,7 +144,7 @@
       <hr class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div
-          @click="selected = t"
+          @click="select(t)"
           :class="{
             'border-4': selected == t,
           }"
@@ -214,6 +214,7 @@
           <div
             v-for="(bar, idx) in normalizegraph()"
             :key="idx"
+            :style="{ height: bar + '%' }"
             class="bg-purple-800 border w-10 h-24"
           ></div>
         </div>
@@ -268,22 +269,26 @@ export default {
         const data = await f.json();
         this.tickers.find((t) => t.name == newTicker.name).price =
           data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        if (this.selected?.name==newTicker.name){
+        if (this.selected?.name == newTicker.name) {
           this.graph.push(data.USD);
         }
-      }, 3000);
+      }, 5000);
       this.ticker = "";
     },
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t != tickerToRemove);
-      if (this.selected == tickerToRemove) {
+      if (this.selected?.name == tickerToRemove.name) {
         this.selected = false;
       }
     },
-    normalizegraph(){
+    normalizegraph() {
       const min = Math.min(...this.graph);
       const max = Math.max(...this.graph);
-      return this.graph.map((price) => ((price - min) * 100) / (max - min));
+      return this.graph.map((price) => 5 + ((price - min) * 100) / (max - min));
+    },
+    select(ticker) {
+      this.selected = ticker;
+      this.graph = [];
     },
   },
 };
