@@ -91,6 +91,7 @@
             </div>
           </div>
         </div>
+        <hr class="w-full border-t border-gray-600 my-4" />
         <button
           v-on:click="add()"
           type="button"
@@ -134,9 +135,63 @@
         </button>
       </section>
       <div>
-        Filter: <input v-model="filter" v-on:keydown="filteredList()" />
-        <button v-if="page > 1" @click="page = page - 1">Nazad</button>
-        <button @click="page = page + 1" v-if="hasNextPage">Vpered</button>
+        <div>Filter: <input v-model="filter" v-on:keydown="page = 1" /></div>
+        <button
+          v-if="page > 1"
+          @click="page = page - 1"
+          class="
+            my-4
+            inline-flex
+            items-center
+            py-2
+            px-4
+            border border-transparent
+            shadow-sm
+            text-sm
+            leading-4
+            font-medium
+            rounded-full
+            text-white
+            bg-gray-600
+            hover:bg-gray-700
+            transition-colors
+            duration-300
+            focus:outline-none
+            focus:ring-2
+            focus:ring-offset-2
+            focus:ring-gray-500
+          "
+        >
+          Nazad
+        </button>
+        <button
+          @click="page = page + 1"
+          v-if="hasNextPage"
+          class="
+            my-4
+            inline-flex
+            items-center
+            py-2
+            px-4
+            border border-transparent
+            shadow-sm
+            text-sm
+            leading-4
+            font-medium
+            rounded-full
+            text-white
+            bg-gray-600
+            hover:bg-gray-700
+            transition-colors
+            duration-300
+            focus:outline-none
+            focus:ring-2
+            focus:ring-offset-2
+            focus:ring-gray-500
+          "
+        >
+          Vpered
+        </button>
       </div>
       <hr class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -145,7 +200,7 @@
           :class="{
             'border-4': selected == t,
           }"
-          v-for="t in filteredList()"
+          v-for="t in filteredList"
           :key="t"
           class="
             bg-white
@@ -209,7 +264,7 @@
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
-            v-for="(bar, idx) in normalizegraph()"
+            v-for="(bar, idx) in normalizegraph"
             :key="idx"
             :style="{ height: bar + '%' }"
             class="bg-purple-800 border w-10 h-24"
@@ -244,12 +299,30 @@
 </template>
 
 <script>
+//7. Наличие в состоянии зависимых данных.(5)
+//2. при удалении остается подписка на загрузку с сервера[5]
+//3. Количество запросов[5]
+//4. Запросы напрямую внутри компонента [5]
+//5. обработка ошибок api(5)
+//6. при удалении тикера не изменяется localstorage[4]
+//10.localstorage и анонимные вкладки(4)
+//1. одинаковый код в watch [3]
+
+//8.плохо выглядит график  если будет много цен(2)
+//9.Магические строки и числа(url, 5сек залержки,ключи, количество на странице)[1]
+
+//Параллельно,
+// x График сломан если везде одинаковые значения
+//   При удалении тикера остается выбор
+
 export default {
   name: "App",
   components: {},
   data() {
     return {
-      ticker: "BTC",
+      ticker: "BTC", //текст в поле для добавления
+      filter: "", //текст в поле для фильтрации
+
       tickers: [],
       selected: false,
       graph: [],
@@ -257,28 +330,51 @@ export default {
       showError: false,
       allowedTickers: [],
       page: 1,
-      filter: "",
-      hasNextPage: true,
     };
   },
-  methods: {
+  computed: {
+    pageStateOptions(){
+      return {
+        filter:this.filter,
+        page:this.page,
+      }
+    },
+    startIndex() {
+      return (this.page - 1) * 6;
+    },
+    endIndex() {
+      return this.page * 6;
+    },
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndex;
+    },
+    filteredTickers() {
+      return this.tickers.filter((f) => f.name.includes(this.filter));
+    },
     //пагинация разбиение на блоки
     filteredList() {
-      const filteredTickers = this.tickers.filter((f) =>
-        f.name.includes(this.filter)
-      );
-      this.hasNextPage = filteredTickers.length > this.page * 6;
-      return filteredTickers.slice((this.page - 1) * 6, this.page * 6);
+      return this.filteredTickers.slice(this.startIndex, this.endIndex);
     },
-
+    normalizegraph() {
+      const min = Math.min(...this.graph);
+      const max = Math.max(...this.graph);
+      if (min === max) {
+        return this.graph.map(() => 50);
+      }
+      return this.graph.map((price) => 5 + ((price - min) * 95) / (max - min));
+    },
+  },
+  methods: {
     subscribeToUpdates(name) {
       setInterval(async () => {
         const f = await fetch(
           `https://min-api.cryptocompare.com/data/price?fsym=${name}&tsyms=USD&api_key=e5e2d0c2b6a4f890be7835e279f08313ea99cb60b125aaf9840b7b4a45e9c870`
         );
         const data = await f.json();
-        this.tickers.find((t) => t.name == name).price =
-          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        if (this.tickers.find((t) => t.name == name)) {
+          this.tickers.find((t) => t.name == name).price =
+            data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        }
         if (this.selected?.name == name) {
           this.graph.push(data.USD);
         }
@@ -294,7 +390,7 @@ export default {
         }, 10000);
         return;
       }
-      this.tickers.push(newTicker);
+      this.tickers = [...this.tickers, newTicker];
       localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
       this.subscribeToUpdates(newTicker.name);
       this.ticker = "";
@@ -305,11 +401,6 @@ export default {
       if (this.selected?.name == tickerToRemove.name) {
         this.selected = false;
       }
-    },
-    normalizegraph() {
-      const min = Math.min(...this.graph);
-      const max = Math.max(...this.graph);
-      return this.graph.map((price) => 5 + ((price - min) * 100) / (max - min));
     },
     select(ticker) {
       this.selected = ticker;
@@ -354,20 +445,23 @@ export default {
     },
   },
   watch: {
+    selected() {
+      this.graph = [];
+    },
+    filteredList() {
+      if (this.filteredList.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+    //область для мониторинга изменения полей data
     filter() {
       this.page = 1;
-
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
     },
-    page() {
+    pageStateOptions(v) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+        `${window.location.pathname}?filter=${v.filter}&page=${v.page}`
       );
     },
   },
@@ -375,10 +469,10 @@ export default {
     const windowData = Object.fromEntries(
       new URL(window.location).searchParams.entries()
     );
-    if (windowData.filter){
+    if (windowData.filter) {
       this.filter = windowData.filter;
     }
-    if (windowData.page){
+    if (windowData.page) {
       this.page = windowData.page;
     }
 
