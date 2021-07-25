@@ -133,7 +133,11 @@
           Добавить
         </button>
       </section>
-
+      <div>
+        Filter: <input v-model="filter" v-on:keydown="filteredList()" />
+        <button v-if="page > 1" @click="page = page - 1">Nazad</button>
+        <button @click="page = page + 1" v-if="hasNextPage">Vpered</button>
+      </div>
       <hr class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div
@@ -141,7 +145,7 @@
           :class="{
             'border-4': selected == t,
           }"
-          v-for="t in tickers"
+          v-for="t in filteredList()"
           :key="t"
           class="
             bg-white
@@ -252,9 +256,34 @@ export default {
       loading: true,
       showError: false,
       allowedTickers: [],
+      page: 1,
+      filter: "",
+      hasNextPage: true,
     };
   },
   methods: {
+    //пагинация разбиение на блоки
+    filteredList() {
+      const filteredTickers = this.tickers.filter((f) =>
+        f.name.includes(this.filter)
+      );
+      this.hasNextPage = filteredTickers.length > this.page * 6;
+      return filteredTickers.slice((this.page - 1) * 6, this.page * 6);
+    },
+
+    subscribeToUpdates(name) {
+      setInterval(async () => {
+        const f = await fetch(
+          `https://min-api.cryptocompare.com/data/price?fsym=${name}&tsyms=USD&api_key=e5e2d0c2b6a4f890be7835e279f08313ea99cb60b125aaf9840b7b4a45e9c870`
+        );
+        const data = await f.json();
+        this.tickers.find((t) => t.name == name).price =
+          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        if (this.selected?.name == name) {
+          this.graph.push(data.USD);
+        }
+      }, 5000);
+    },
     add() {
       const newTicker = { name: this.ticker, price: "-" };
       const exists = this.tickers.find((t) => t.name == newTicker.name);
@@ -266,18 +295,10 @@ export default {
         return;
       }
       this.tickers.push(newTicker);
-      setInterval(async () => {
-        const f = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD&api_key=e5e2d0c2b6a4f890be7835e279f08313ea99cb60b125aaf9840b7b4a45e9c870`
-        );
-        const data = await f.json();
-        this.tickers.find((t) => t.name == newTicker.name).price =
-          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        if (this.selected?.name == newTicker.name) {
-          this.graph.push(data.USD);
-        }
-      }, 5000);
+      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+      this.subscribeToUpdates(newTicker.name);
       this.ticker = "";
+      this.filter = "";
     },
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t != tickerToRemove);
@@ -294,6 +315,14 @@ export default {
       this.selected = ticker;
       this.graph = [];
     },
+    /**
+     * поиск в обект -  ищет значения в объекте возвращает вхождения но количество не больше @length
+     * @date 2021-07-25
+     * @param {any} from - обхект в котором производится поиск {a:{},b:{}...}
+     * @param {any} text
+     * @param {any} length=4
+     * @returns {any}
+     */
     findelems(from, text, length = 4) {
       if (text == "") {
         return [];
@@ -324,7 +353,40 @@ export default {
       return res;
     },
   },
+  watch: {
+    filter() {
+      this.page = 1;
+
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+    page() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+  },
   created() {
+    const windowData = Object.fromEntries(
+      new URL(window.location).searchParams.entries()
+    );
+    if (windowData.filter){
+      this.filter = windowData.filter;
+    }
+    if (windowData.page){
+      this.page = windowData.page;
+    }
+
+    const tickerdata = localStorage.getItem("cryptonomicon-list");
+    if (tickerdata) {
+      this.tickers = JSON.parse(tickerdata);
+      this.tickers.forEach((f) => this.subscribeToUpdates(f.name));
+    }
     this.loading = true;
     fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
       .then((f) => {
@@ -332,10 +394,6 @@ export default {
       })
       .then((data) => {
         this.allowedTickers = data.Data;
-        Object.getOwnPropertyNames(data.Data).find((key) => {
-          return data.Data[key].Symbol == "BTC";
-        });
-        //console.log(this.allowedTickers[keyy]);
         this.loading = false;
       });
   },
