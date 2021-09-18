@@ -183,6 +183,7 @@
 import * as Api from "./api";
 import AddTicker from "./components/AddTicker";
 
+
 export default {
   name: "App",
   components: {AddTicker},
